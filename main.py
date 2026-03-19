@@ -36,3 +36,6 @@ async def predict_entity_sentiment(text: str):
 async def predict_text_sentiment(text: str):
     s = sentiment.get_text_sentiment(sentiment.clean_text(text))
     return {"status": "Text sentiment analysis", "text": text, "result": s}
+
+
+# test
