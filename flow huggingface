@@ -1,0 +1,9 @@
+model name
+tokenizer
+model --> not pipeline, tapi jenis modelnya AutoModelForSequenceClassification
+load dataset dari pandas trus preprocess
+convert pandas dataset jadi hugging dataset
+tambahin kolom tokenized
+training args
+trainer
+trainer.train()
