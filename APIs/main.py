@@ -20,7 +20,7 @@ def predict_text_sentiment(text: str):
     }
 
 
-@app.get("/predict")
+@app.get("/predict-entity")
 async def predict_entity_sentiment(text: str):
     entities = ner.get_entity(text)
 
@@ -30,3 +30,9 @@ async def predict_entity_sentiment(text: str):
     qa.get_description(entities, text)
     sentiment.get_entity_sentiment(entities)
     return {"status": "Entities were found", "entities": entities}
+
+
+@app.get("/predict-text")
+async def predict_text_sentiment(text: str):
+    s = sentiment.get_text_sentiment(sentiment.clean_text(text))
+    return {"status": "Text sentiment analysis", "text": text, "result": s}
