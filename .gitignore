@@ -4,3 +4,8 @@ datasets/
 __pycache__/
 .ipynb_checkpoints/
 upload_model.py
+node_modules
+.env
+.claude
+models_new
+*.csv
