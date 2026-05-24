@@ -14,7 +14,8 @@ class sentiment_model:
             logits = self.model(**inputs).logits
 
         predicted_class = torch.argmax(logits, dim=-1).item()
-        return self.model.config.id2label[predicted_class]
+        label = self.model.config.id2label[predicted_class]
+        return "POSITIVE" if label == "LABEL_1" else "NEGATIVE"
 
 
 class ner_model:

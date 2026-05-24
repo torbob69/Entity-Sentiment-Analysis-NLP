@@ -1,18 +1,15 @@
 from pydantic import BaseModel, Field, model_validator
 from typing import Annotated
-from fastapi import Query
 from datetime import date
-
-date_object = date(date.today().year, 1, 1)
 
 class predict_queries(BaseModel):
     search_query: Annotated[str, Field(min_length=1, max_length=200)]
-    limit: Annotated[int, Query(ge=50, lt=1000)]
-    languange: str = "en"
-    min_likes: Annotated[int, Query(ge=0)] = 0
+    limit: Annotated[int, Field(ge=50, lt=1000)]
+    language: str = "en"
+    min_likes: Annotated[int, Field(ge=0)] = 0
     verified_only: bool = False
-    since: date = date_object
-    until: date = date.today()
+    since: date = Field(default_factory=lambda: date(date.today().year, 1, 1))
+    until: date = Field(default_factory=date.today)
 
     @model_validator(mode="after")
     def validate_date_range(self):
@@ -21,13 +18,3 @@ class predict_queries(BaseModel):
         if self.until > date.today():
             raise ValueError("'until' date must not be in the future")
         return self
-    
-class entity:
-    name : str
-    activity : str
-    sentiment : str
-
-class tweet:
-    text: str
-    sentiment : str
-    entity : list[entity]

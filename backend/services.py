@@ -3,9 +3,11 @@ from config import my_access_token, consumer_key, consumer_secret
 from fastapi import HTTPException
 from Scweet import Scweet
 from Scweet.exceptions import RateLimitError
-import re, emoji, html
+import re, emoji, html, logging
 from schemas import predict_queries
 from load_model import pipeline_models
+
+logger = logging.getLogger(__name__)
 
 def preprocessing(text: str):
     text = html.unescape(text)
@@ -42,10 +44,11 @@ async def get_tweets(query: predict_queries):
     tweets = {}
     try:
         s = Scweet(auth_token=my_access_token)
-        temp_tweets = await s.asearch(query.search_query, limit=query.limit, since=str(query.since), until=str(query.until), lang=query.languange, min_likes=query.min_likes, verified_only=query.verified_only)
+        temp_tweets = await s.asearch(query.search_query, limit=query.limit, since=str(query.since), until=str(query.until), lang=query.language, min_likes=query.min_likes, verified_only=query.verified_only)
     except RateLimitError:
         raise HTTPException(status_code=429, detail="Search limit reached, please try again in 24 hours")
-    except Exception:
+    except Exception as e:
+        logger.exception("Failed to fetch tweets: %s", e)
         raise HTTPException(status_code=502, detail="Failed to fetch tweets, please try again later")
 
     for t in temp_tweets:
@@ -59,6 +62,7 @@ async def get_tweets(query: predict_queries):
 async def predict_tweet(text: str):
     try:
         result = pipeline_models.predict(text)
-    except Exception:
+    except Exception as e:
+        logger.exception("Prediction failed: %s", e)
         raise HTTPException(status_code=503, detail="Prediction model unavailable, please try again later")
     return result
