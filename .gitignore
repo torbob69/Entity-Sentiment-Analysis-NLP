@@ -1,4 +1,7 @@
 venv/
+backend/scweet_state.db
+backend/scweet_state.db-shm
+backend/scweet_state.db-wal
 models/
 datasets/
 __pycache__/

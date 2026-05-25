@@ -50,6 +50,14 @@ def debug_sentiment():
         "samples": [{"text": t, "result": model.predict(t)} for t in samples],
     }
 
+@app.post("/debug-predict")
+async def debug_predict(body: dict):
+    text = body.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="'text' field is required")
+    from services import predict_tweet
+    return await predict_tweet(text)
+
 @app.get("/login")
 async def login():
     if not consumer_key or not consumer_secret:
