@@ -2,7 +2,7 @@ import Logo from "../components/logo";
 import backend_url from "../../constants"
 export default function Login() {
 const redirect_login = () =>{
-    window.location.href = `${backend_url}/dev-login`
+    window.location.href = `${backend_url}/login`
 }
 
   return (
