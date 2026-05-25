@@ -1,2 +1,2 @@
-const backend_url = "http://127.0.0.1:8000";
+const backend_url = "https://throbbing-catnip-cranberry.ngrok-free.dev";
 export default backend_url;
