@@ -70,8 +70,11 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${backend_url}/predict`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Access-Token": sessionStorage.getItem("access_token") || "",
+          "X-Access-Token-Secret": sessionStorage.getItem("access_token_secret") || "",
+        },
         body: JSON.stringify({ search_query: query, language: "en", ...filters }),
       });
       if (!res.ok) {
@@ -86,6 +89,17 @@ export default function Dashboard() {
       set_loading(false);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("access_token");
+    const secret = params.get("access_token_secret");
+    if (token && secret) {
+      sessionStorage.setItem("access_token", token);
+      sessionStorage.setItem("access_token_secret", secret);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     const timers = [];
@@ -144,7 +158,9 @@ export default function Dashboard() {
   }, []);
 
   const handle_logout = async () => {
-    await fetch(`${backend_url}/logout`, { method: "POST", credentials: "include" });
+    sessionStorage.removeItem("access_token");
+    sessionStorage.removeItem("access_token_secret");
+    await fetch(`${backend_url}/logout`, { method: "POST" });
     navigate("/");
   };
 

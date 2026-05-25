@@ -1,8 +1,11 @@
-from fastapi import FastAPI, HTTPException, Cookie
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Cookie, Header
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import tweepy, logging
-from config import consumer_key, consumer_secret, my_access_token
+from config import (
+    consumer_key, consumer_secret, my_access_token,
+    ngrok_url, dev_access_token, dev_access_token_secret, frontend_url,
+)
 from services import get_tweets, predict_tweet, check_acc_token
 from schemas import predict_queries
 
@@ -11,9 +14,14 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# Cross-origin cookies require samesite=none + secure when served over HTTPS
+_is_prod = ngrok_url.startswith("https://")
+_cookie_kwargs = {"httponly": True, "samesite": "none" if _is_prod else "lax", "secure": _is_prod}
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    # Add your Vercel URL to FRONTEND_URL in .env after first deploy
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", frontend_url],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,7 +41,8 @@ def debug_config():
         "consumer_key_loaded": bool(consumer_key),
         "consumer_key_prefix": consumer_key[:6] + "..." if consumer_key else None,
         "consumer_secret_loaded": bool(consumer_secret),
-        "callback_url": "http://localhost:8000/callback",
+        "callback_url": f"{ngrok_url}/callback",
+        "frontend_url": frontend_url,
     }
 
 @app.get("/debug-sentiment")
@@ -67,7 +76,7 @@ async def login():
         oauth = tweepy.OAuth1UserHandler(
             consumer_key=consumer_key,
             consumer_secret=consumer_secret,
-            callback="http://127.0.0.1:8000/callback"
+            callback=f"{ngrok_url}/callback",
         )
         auth_url = oauth.get_authorization_url()
     except tweepy.TweepyException as e:
@@ -99,20 +108,34 @@ async def callback(oauth_token: str, oauth_verifier: str):
     except tweepy.TweepyException:
         raise HTTPException(status_code=502, detail="Failed to complete OAuth with Twitter, please try again later")
 
-    # return {"access_token": access_token, "access_token_secret": access_token_secret}
-    
-    res = RedirectResponse("http://127.0.0.1:5173/dashboard")
-    res.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax")
-    res.set_cookie(key="access_token_secret", value=access_token_secret, httponly=True, samesite="lax")
-    
-    return res
-    
+    return HTMLResponse(
+        f'<script>window.location.replace("{frontend_url}/dashboard'
+        f'?access_token={access_token}&access_token_secret={access_token_secret}")</script>'
+    )
+
+@app.get("/dev-login")
+async def dev_login():
+    """Bypass OAuth using pre-issued tokens from X Developer Portal.
+    Use this when X rejects the ngrok callback URL."""
+    if not dev_access_token or not dev_access_token_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="DEV_ACCESS_TOKEN / DEV_ACCESS_TOKEN_SECRET not configured in .env",
+        )
+    return HTMLResponse(
+        f'<script>window.location.replace("{frontend_url}/dashboard'
+        f'?access_token={dev_access_token}&access_token_secret={dev_access_token_secret}")</script>'
+    )
 
 @app.post("/predict")
-async def predict(search_query: predict_queries, access_token: str | None = Cookie(default=None), access_token_secret: str | None = Cookie(default=None)):
-    if not access_token or not access_token_secret:
+async def predict(
+    search_query: predict_queries,
+    x_access_token: str | None = Header(default=None, alias="X-Access-Token"),
+    x_access_token_secret: str | None = Header(default=None, alias="X-Access-Token-Secret"),
+):
+    if not x_access_token or not x_access_token_secret:
         raise HTTPException(status_code=401, detail="Not authenticated, please sign in with your X account")
-    await check_acc_token(access_token, access_token_secret)
+    await check_acc_token(x_access_token, x_access_token_secret)
     tweets: dict[dict] = await get_tweets(search_query)
     for t in tweets:
         tweets[t]["result"] = await predict_tweet(tweets[t]["text"])
@@ -120,7 +143,4 @@ async def predict(search_query: predict_queries, access_token: str | None = Cook
 
 @app.post("/logout")
 async def logout():
-    res = JSONResponse({"message": "Logged out"})
-    res.delete_cookie("access_token", samesite="lax")
-    res.delete_cookie("access_token_secret", samesite="lax")
-    return res
+    return JSONResponse({"message": "Logged out"})
